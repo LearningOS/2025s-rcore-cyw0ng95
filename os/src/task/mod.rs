@@ -139,10 +139,16 @@ impl TaskManager {
     }
 
     /// Get the syscall count of a task by its id and syscall id.
-    pub fn get_task_syscall_count(&self, task_id: usize, syscall_id: usize) -> Option<isize> {
+    pub fn get_task_syscall_count(&self, syscall_id: usize) -> Option<isize> {
         let inner = self.inner.exclusive_access();
-        if task_id < self.num_app {
-            Some(inner.tasks[task_id].syscall_count[syscall_id] as isize)
+        let current = inner.current_task;
+        if current < self.num_app {
+            let task = &inner.tasks[current];
+            if let Some(idx) = task.syscall_ids.iter().position(|&id| id == syscall_id) {
+                Some(task.syscall_count[idx] as isize)
+            } else {
+                None
+            }
         } else {
             None
         }
