@@ -54,6 +54,8 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            syscall_ids: [64, 93, 124, 169, 410, 0],
+            syscall_count: [0; 6],
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -133,6 +135,28 @@ impl TaskManager {
             // go back to user mode
         } else {
             panic!("All applications completed!");
+        }
+    }
+
+    /// Get the syscall count of a task by its id and syscall id.
+    pub fn get_task_syscall_count(&self, task_id: usize, syscall_id: usize) -> Option<isize> {
+        let inner = self.inner.exclusive_access();
+        if task_id < self.num_app {
+            Some(inner.tasks[task_id].syscall_count[syscall_id] as isize)
+        } else {
+            None
+        }
+    }
+
+    /// Increment the syscall count of the current task for a given syscall id.
+    pub fn set_current_task_syscall_count(&self, syscall_id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let task_id = inner.current_task;
+        if task_id < self.num_app {
+            let task = &mut inner.tasks[task_id];
+            if let Some(idx) = task.syscall_ids.iter().position(|&id| id == syscall_id) {
+                task.syscall_count[idx] += 1;
+            }
         }
     }
 }
